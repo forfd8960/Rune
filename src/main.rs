@@ -1,33 +1,46 @@
-use std::io::Write;
-use std::{io, thread::sleep, time::Duration};
-
-use crossterm::terminal::{Clear, ClearType};
 use crossterm::{
+    cursor,
+    event::{self, Event as CEvent, KeyCode, KeyEvent, KeyModifiers},
     execute,
-    terminal::{SetSize, SetTitle},
+    style::Print,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use rune::terminal;
+use rune::input::{Event, read_event};
+use std::io::{self, Write, stdout};
 
-fn main() {
-    println!("Rune is a Text Editor written in Rust.");
+fn main() -> io::Result<()> {
+    // Enter raw mode so keypresses are delivered immediately,
+    // without waiting for Enter, and without echo.
+    enable_raw_mode()?;
 
-    let _ = match terminal::RawModeGuard::new() {
-        Ok(guard) => guard,
-        Err(e) => {
-            eprintln!("Failed to enter raw mode: {}", e);
-            return;
-        }
-    };
+    let mut stdout = stdout();
+
+    // Switch to the alternate screen buffer (optional but clean).
+    execute!(stdout, EnterAlternateScreen, cursor::MoveTo(0, 0))?;
+
+    println!("Type anything. Press Ctrl+Q to quit.\r");
+    println!("─────────────────────────────────────\r");
 
     loop {
-        sleep(Duration::from_secs(3));
-        execute!(
-            io::stdout(),
-            Clear(ClearType::All),
-            SetSize(10, 10),
-            SetTitle("Rune")
-        )
-        .unwrap();
-        write!(io::stdout(), "Hello, Rune!").unwrap();
+        match read_event() {
+            Ok(Some(Event::Display(label))) => {
+                // Display the key label on the terminal
+                execute!(stdout, Print(label))?;
+                stdout.flush()?;
+            }
+            Ok(Some(Event::Quit)) => break,
+            Ok(None) => {} // Ignore other events
+            Err(e) => {
+                eprintln!("Error reading event: {}", e);
+                break;
+            }
+        }
     }
+
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+    execute!(stdout, LeaveAlternateScreen)?;
+    disable_raw_mode()?;
+    println!("Bye!");
+
+    Ok(())
 }

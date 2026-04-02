@@ -1,4 +1,4 @@
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::terminal::{self, ClearType, disable_raw_mode, enable_raw_mode};
 
 use crate::errors::RuneError;
 
@@ -25,4 +25,10 @@ impl Drop for RawModeGuard {
             eprintln!("Failed to disable raw mode: {}", e);
         }
     }
+}
+
+pub fn clear_screen() -> Result<(), RuneError> {
+    // Code to clear the terminal screen
+    crossterm::execute!(std::io::stdout(), terminal::Clear(ClearType::All))
+        .map_err(|e| RuneError::TerminalError(e.to_string()))
 }
